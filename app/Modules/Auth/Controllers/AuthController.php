@@ -5,6 +5,7 @@ namespace App\Modules\Auth\Controllers;
 use App\Http\Controllers\Controller;
 use App\Models\Organization;
 use App\Models\OrganizationSubscription;
+use App\Models\Plan;
 use App\Models\User;
 use App\Modules\Auth\Requests\LoginRequest;
 use App\Modules\Auth\Requests\RegisterRequest;
@@ -23,21 +24,24 @@ class AuthController extends Controller
         DB::beginTransaction();
 
         try {
-            // 1. Create organization
+            // Resolve plan — default to starter if none provided
+            $slug = $request->plan_slug ?? 'starter';
+            $plan = Plan::where('slug', $slug)->where('is_active', true)->firstOrFail();
+
+            // Create organization — name defaults to "Bill Base" so it's never null.
+            // Users are nudged to update this in Settings after registration.
             $organization = Organization::create([
+                'name'     => 'Bill Base',
                 'org_code' => CodeGeneratorService::organization(),
                 'country'  => 'ZA',
                 'currency' => 'ZAR',
                 'status'   => 'active',
             ]);
 
-            // Free trial: default to plan 2 for now; we will scale plan selection later.
-            $planId = $request->plan_id ?? 2;
-
             OrganizationSubscription::create([
                 'organization_id' => $organization->id,
-                'plan_id'         => $planId,
-                'status'          => 'trialing',
+                'plan_id'         => $plan->id,
+                'status'          => OrganizationSubscription::STATUS_TRIALING,
                 'trial_ends_at'   => now()->addDays(14),
             ]);
 
@@ -52,11 +56,9 @@ class AuthController extends Controller
 
             DB::commit();
 
-            // 4. Generate token
             $token = $user->createToken('auth_token')->plainTextToken;
 
-            // 5. Load relationships for resource
-            $user->load('organization.subscription');
+            $user->load('organization.activeSubscription.plan');
 
             return response()->json([
                 'status' => 'success',
@@ -91,13 +93,11 @@ class AuthController extends Controller
         // Revoke previous tokens — one active session at a time
         $user->tokens()->delete();
 
-        // Update last login
         $user->update(['last_login_at' => now()]);
 
-        // Generate token
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        $user->load('organization.subscription');
+        $user->load('organization.activeSubscription.plan');
 
         return response()->json([
             'status' => 'success',
@@ -121,7 +121,7 @@ class AuthController extends Controller
 
     public function me(): JsonResponse
     {
-        $user = auth()->user()->load('organization.subscription');
+        $user = auth()->user()->load('organization.activeSubscription.plan');
 
         return response()->json([
             'status' => 'success',
@@ -133,7 +133,7 @@ class AuthController extends Controller
 
     private function authCookie(string $token): SymfonyCookie
     {
-        $secure = (bool) config('session.secure', app()->environment('production'));
+        $secure   = (bool) config('session.secure', app()->environment('production'));
         $sameSite = config('session.same_site', 'lax') ?: 'lax';
 
         return cookie(

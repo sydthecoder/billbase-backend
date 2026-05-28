@@ -3,18 +3,17 @@
 namespace App\Modules\Settings\Services;
 
 use App\Models\OrganizationMailSetting;
+use App\Services\OrganizationSettingsResolver;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Mail\Message;
-use Illuminate\Support\Facades\Mail;
-use Symfony\Component\Mailer\Transport\Smtp\EsmtpTransport;
 use Symfony\Component\Mime\Email;
+use Symfony\Component\Mime\Address;
 
 class MailSettingsService
 {
     public function get(User $user): JsonResponse
     {
-        $setting = OrganizationMailSetting::where('organization_id', $user->organization_id)->first();
+        $setting = OrganizationSettingsResolver::for($user->organization_id)->mailSetting();
 
         if (! $setting) {
             return response()->json([
@@ -35,10 +34,11 @@ class MailSettingsService
 
         $config = $data['config'];
 
+        // Preserve masked secrets — don't overwrite stored secret with placeholder
         if ($data['driver'] === 'smtp') {
             $password = $config['password'] ?? null;
 
-            if (($password === null || $password === '' || $password === '••••••••') && $existing && $existing->driver === 'smtp') {
+            if (($password === null || $password === '' || $password === '••••••••') && $existing?->driver === 'smtp') {
                 $config['password'] = $existing->config['password'] ?? '';
             }
         }
@@ -46,12 +46,11 @@ class MailSettingsService
         if ($data['driver'] === 'brevo') {
             $apiKey = $config['api_key'] ?? null;
 
-            if (($apiKey === null || $apiKey === '' || $apiKey === '••••••••') && $existing && $existing->driver === 'brevo') {
+            if (($apiKey === null || $apiKey === '' || $apiKey === '••••••••') && $existing?->driver === 'brevo') {
                 $config['api_key'] = $existing->config['api_key'] ?? '';
             }
         }
 
-        // updateOrCreate — one row per org, replace not duplicate
         $setting = OrganizationMailSetting::updateOrCreate(
             ['organization_id' => $user->organization_id],
             [
@@ -59,7 +58,7 @@ class MailSettingsService
                 'from_name'   => $data['from_name'],
                 'from_email'  => $data['from_email'],
                 'config'      => $config,
-                'is_verified' => false, // reset verification on every save
+                'is_verified' => false, // always reset on save — must re-test
             ]
         );
 
@@ -82,31 +81,28 @@ class MailSettingsService
         }
 
         try {
-            $config = $setting->config;
+            // Build a scoped mailer from the resolver — no global config() mutation
+            $resolver = OrganizationSettingsResolver::for($user->organization_id);
+            $mailer   = $resolver->buildMailer(requireVerified: false);
 
-            if ($setting->driver === 'smtp') {
-                // Temporarily swap Laravel mailer config for this request
-                config([
-                    'mail.mailers.smtp.host'       => $config['host'],
-                    'mail.mailers.smtp.port'        => $config['port'],
-                    'mail.mailers.smtp.encryption'  => $config['encryption'],
-                    'mail.mailers.smtp.username'    => $config['username'],
-                    'mail.mailers.smtp.password'    => $config['password'],
-                    'mail.from.address'             => $setting->from_email,
-                    'mail.from.name'                => $setting->from_name,
-                ]);
+            if (! $mailer) {
+                return response()->json([
+                    'status'  => 'error',
+                    'message' => 'Could not build mailer from current settings. Check driver configuration.',
+                ], 422);
             }
 
-            // Future: handle brevo driver here
-            // if ($setting->driver === 'brevo') { ... }
+            $from = $resolver->mailFrom();
 
-            Mail::raw('This is a test email from PayFlow. Your mail settings are working correctly.', function (Message $message) use ($recipient, $setting) {
-                $message->to($recipient)
-                        ->subject('PayFlow — Mail Settings Test')
-                        ->from($setting->from_email, $setting->from_name);
-            });
+            // Send via the scoped mailer directly — no Laravel Mail facade, no global state
+            $email = (new Email())
+                ->from(new Address($from['address'], $from['name']))
+                ->to($recipient)
+                ->subject('PayFlow — Mail Settings Test')
+                ->text('This is a test email from PayFlow. Your mail settings are working correctly.');
 
-            // Mark as verified
+            $mailer->getSymfonyTransport()->send($email);
+
             $setting->update(['is_verified' => true]);
 
             return response()->json([
@@ -128,7 +124,7 @@ class MailSettingsService
     {
         $config = $setting->config;
 
-        // Never expose password or api_key in response
+        // Never expose secrets in responses
         if (isset($config['password'])) {
             $config['password'] = '••••••••';
         }

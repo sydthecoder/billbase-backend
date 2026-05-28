@@ -16,7 +16,6 @@ return new class extends Migration
             $table->string('name', 100);
             $table->string('slug', 100)->unique();
             $table->decimal('price', 10, 2)->default(0.00);
-            $table->json('features');
             $table->boolean('is_active')->default(true);
             $table->timestamps();
         });

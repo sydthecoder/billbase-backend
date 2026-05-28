@@ -9,15 +9,17 @@ class UserResource extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $subscription = $this->organization->activeSubscription;
+
         return [
-            'id'         => $this->id,
-            'first_name' => $this->first_name,
-            'last_name'  => $this->last_name,
-            'full_name'  => trim($this->first_name . ' ' . $this->last_name) ?: null,
-            'email'      => $this->email,
-            'phone'      => $this->phone,
-            'role'       => $this->role,
-            'avatar_url' => $this->avatar_url,
+            'id'            => $this->id,
+            'first_name'    => $this->first_name,
+            'last_name'     => $this->last_name,
+            'full_name'     => trim($this->first_name . ' ' . $this->last_name) ?: null,
+            'email'         => $this->email,
+            'phone'         => $this->phone,
+            'role'          => $this->role,
+            'avatar_url'    => $this->avatar_url,
             'last_login_at' => $this->last_login_at,
             'organization'  => [
                 'id'       => $this->organization->id,
@@ -39,8 +41,14 @@ class UserResource extends JsonResource
                 'tax_number' => $this->organization->tax_number,
                 'status'     => $this->organization->status,
                 'subscription' => [
-                    'status'        => $this->organization->subscription?->status,
-                    'trial_ends_at' => $this->organization->subscription?->trial_ends_at,
+                    'status'        => $subscription?->status,
+                    'trial_ends_at' => $subscription?->trial_ends_at,
+                    'is_usable'     => $subscription?->isUsable() ?? false,
+                    'plan'          => [
+                        'id'   => $subscription?->plan?->id,
+                        'name' => $subscription?->plan?->name,
+                        'slug' => $subscription?->plan?->slug,
+                    ],
                 ],
             ],
         ];

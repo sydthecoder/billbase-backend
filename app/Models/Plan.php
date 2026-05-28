@@ -10,12 +10,10 @@ class Plan extends Model
         'name',
         'slug',
         'price',
-        'features',
         'is_active',
     ];
 
     protected $casts = [
-        'features'  => 'array',
         'is_active' => 'boolean',
         'price'     => 'decimal:2',
     ];

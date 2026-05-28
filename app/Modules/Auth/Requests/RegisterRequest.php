@@ -14,9 +14,9 @@ class RegisterRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email'    => 'required|email|unique:users,email',
-            'password' => 'required|min:8|confirmed',
-            'plan_id'  => 'nullable|integer',
+            'email'     => 'required|email|unique:users,email',
+            'password'  => 'required|min:8|confirmed',
+            'plan_slug' => 'nullable|string|exists:plans,slug',
         ];
     }
 
@@ -25,6 +25,7 @@ class RegisterRequest extends FormRequest
         return [
             'email.unique'       => 'An account with this email already exists.',
             'password.confirmed' => 'Passwords do not match.',
+            'plan_slug.exists'   => 'Selected plan does not exist.',
         ];
     }
 }
