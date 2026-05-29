@@ -14,8 +14,7 @@ class CreateCustomerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_type'      => 'required|in:individual,business',
-            'company_name'       => 'required_if:customer_type,business|nullable|string|max:150',
+            'company_name'       => 'nullable|string|max:150',
             'company_reg_number' => 'nullable|string|max:100',
             'vat_number'         => 'nullable|string|max:100',
             'first_name'         => 'required|string|max:100',

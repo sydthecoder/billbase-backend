@@ -14,8 +14,7 @@ class UpdateCustomerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_type'      => 'sometimes|in:individual,business',
-            'company_name'       => 'required_if:customer_type,business|nullable|string|max:150',
+            'company_name'       => 'nullable|string|max:150',
             'company_reg_number' => 'nullable|string|max:100',
             'vat_number'         => 'nullable|string|max:100',
             'first_name'         => 'sometimes|string|max:100',

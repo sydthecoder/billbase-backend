@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->foreignId('organization_id')->constrained()->cascadeOnDelete();
             $table->string('customer_code', 50);
-            $table->enum('customer_type', ['individual', 'company']);
             $table->string('company_name', 150)->nullable();
             $table->string('company_reg_number', 100)->nullable();
             $table->string('vat_number', 100)->nullable();

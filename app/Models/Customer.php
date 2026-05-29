@@ -12,7 +12,6 @@ class Customer extends Model
     protected $fillable = [
         'organization_id',
         'customer_code',
-        'customer_type',
         'company_name',
         'company_reg_number',
         'vat_number',
