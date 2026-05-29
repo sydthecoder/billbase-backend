@@ -11,7 +11,7 @@ use Illuminate\Console\Command;
 class ExpireTrials extends Command
 {
     protected $signature   = 'subscriptions:expire-trials';
-    protected $description = 'Expire overdue trials and send expiry warning emails to org owners.';
+    protected $description = 'Expire overdue trials and send warning emails to org owners.';
 
     public function handle(): void
     {
@@ -20,7 +20,7 @@ class ExpireTrials extends Command
     }
 
     // -------------------------------------------------------------------------
-    // Step 1 — Mark expired
+    // Step 1 — Mark expired + notify
     // -------------------------------------------------------------------------
 
     private function expireOverdueTrials(): void
@@ -37,8 +37,17 @@ class ExpireTrials extends Command
         foreach ($expired as $subscription) {
             $subscription->update(['status' => OrganizationSubscription::STATUS_EXPIRED]);
 
-            // Notify all owners of this org
-            $this->notifyOwners($subscription->organization_id, 'expired');
+            $owners = $this->owners($subscription->organization_id);
+
+            foreach ($owners as $owner) {
+                $notification = new TrialExpiredNotification();
+
+                // Store in DB notifications table
+                $owner->notify($notification);
+
+                // Send via Brevo API
+                $notification->sendMail($owner);
+            }
 
             $this->info("Expired trial for org ID: {$subscription->organization_id}");
         }
@@ -47,7 +56,7 @@ class ExpireTrials extends Command
     }
 
     // -------------------------------------------------------------------------
-    // Step 2 — Warn orgs expiring in 3 days
+    // Step 2 — Warn orgs expiring within 3 days
     // -------------------------------------------------------------------------
 
     private function warnExpiringTrials(): void
@@ -62,7 +71,17 @@ class ExpireTrials extends Command
         }
 
         foreach ($expiringSoon as $subscription) {
-            $this->notifyOwners($subscription->organization_id, 'expiring', $subscription);
+            $owners = $this->owners($subscription->organization_id);
+
+            foreach ($owners as $owner) {
+                $notification = new TrialExpiringNotification($subscription->trial_ends_at);
+
+                // Store in DB notifications table
+                $owner->notify($notification);
+
+                // Send via Brevo API
+                $notification->sendMail($owner);
+            }
 
             $this->info("Warned org ID: {$subscription->organization_id} — trial ends {$subscription->trial_ends_at->toDateString()}");
         }
@@ -71,23 +90,13 @@ class ExpireTrials extends Command
     }
 
     // -------------------------------------------------------------------------
-    // Shared — notify all owners of an org
+    // Shared helper
     // -------------------------------------------------------------------------
 
-    private function notifyOwners(int $organizationId, string $type, ?OrganizationSubscription $subscription = null): void
+    private function owners(int $organizationId)
     {
-        $owners = User::where('organization_id', $organizationId)
+        return User::where('organization_id', $organizationId)
             ->where('role', 'owner')
             ->get();
-
-        foreach ($owners as $owner) {
-            if ($type === 'expired') {
-                $owner->notify(new TrialExpiredNotification());
-            }
-
-            if ($type === 'expiring' && $subscription) {
-                $owner->notify(new TrialExpiringNotification($subscription->trial_ends_at));
-            }
-        }
     }
 }
