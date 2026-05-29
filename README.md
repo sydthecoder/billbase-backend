@@ -1,7 +1,7 @@
 ## Backend (Laravel) Overview
 
 This backend is a Laravel API organized into feature modules under `app/Modules`. Each module owns its routes, controllers, requests, services, and resources, keeping feature logic self-contained and consistent across the codebase.
-
+zDRRYVEYfZ0rNx8JP09y
 ## Project Structure
 
 ```

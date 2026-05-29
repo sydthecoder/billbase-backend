@@ -35,4 +35,24 @@ return [
         ],
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Brevo (Transactional Email)
+    |--------------------------------------------------------------------------
+    |
+    | Brevo is used as the central mail provider for all system emails —
+    | trial notifications, invoice sending, password resets, etc.
+    |
+    | API key is found in Brevo dashboard → SMTP & API → API Keys.
+    | Sender email must be a verified sender in your Brevo account.
+    |
+    */
+ 
+    'brevo' => [
+        'key'          => env('BREVO_API_KEY'),
+        'sender_email' => env('BREVO_SENDER_EMAIL'),
+        'sender_name'  => env('BREVO_SENDER_NAME'),
+        'endpoint'     => 'https://api.brevo.com/v3/smtp/email',
+    ],
+
 ];

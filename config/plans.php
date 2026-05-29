@@ -27,7 +27,7 @@ return [
     'starter' => [
 
         'features' => [
-            'Up to 100 invoices per month',
+            'Up to 200 invoices per month',
             '1 invoice template',
             '1 user',
             'Basic reporting',
@@ -35,7 +35,7 @@ return [
         ],
 
         'limits' => [
-            'invoices_per_month' => 100,
+            'invoices_per_month' => 200,
             'customers'          => 50,
             'users'              => 1,
             'templates'          => 1,
@@ -51,7 +51,7 @@ return [
     'professional' => [
 
         'features' => [
-            'Up to 500 invoices per month',
+            'Up to 1000 invoices per month',
             '5 invoice templates',
             'Up to 5 users',
             'Advanced reporting',
@@ -61,7 +61,7 @@ return [
         ],
 
         'limits' => [
-            'invoices_per_month' => 500,
+            'invoices_per_month' => 1000,
             'customers'          => 500,
             'users'              => 5,
             'templates'          => 5,
